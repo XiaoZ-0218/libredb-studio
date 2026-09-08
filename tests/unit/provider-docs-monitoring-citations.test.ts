@@ -434,30 +434,51 @@ describe("provider docs that quote a label value verbatim", () => {
 
 /**
  * #647: `SQLBaseProvider` has no placeholder logic. The real home is
- * `positionalPlaceholder()` in `src/lib/sql/values.ts`. Four docs paraphrased the
+ * `positionalPlaceholder()` in `src/lib/sql/values.ts`. Docs paraphrased the
  * capability onto the base class (or claimed inheritance); #640's `getPlaceholder`
- * grep missed every paraphrase.
+ * grep missed every paraphrase, and a closed phrasing list missed `mysql.md:31`.
  *
- * Assert on the ATTRIBUTION, not the bare token `placeholder`:
- * - `ADDING_A_PROVIDER.md` legitimately names `positionalPlaceholder()` and `searchPlaceholder`
- * - `postgres.md` correctly says the helper is "shared rather than inherited"
- * - clickhouse/druid correctly say the base "no longer has" a placeholder helper
- *
- * Pair the negative with a control: if the helper later moves into `sql-base.ts`,
- * the positive assertion goes red and this guard must be rewritten on purpose.
+ * Assert on ATTRIBUTION in the sentence that contains a `placeholder(s)` match:
+ * denials ("Not in the list…", "no longer has") clear only that sentence, not a
+ * ±220-char neighborhood. Pair the negative with a control: if the helper later
+ * moves into `sql-base.ts`, the positive assertion goes red and this guard must
+ * be rewritten on purpose.
  */
 const PLACEHOLDER_ATTRIBUTION_DOCS = [
   "docs/ADDING_A_PROVIDER.md",
   "docs/DATABASE_PROVIDERS.md",
   "docs/providers/postgres.md",
+  "docs/providers/mysql.md",
 ] as const;
 
-/**
- * Phrases that name a placeholder *capability* as something owned or handed down —
- * not the function name `positionalPlaceholder`, not UI "placeholder row" copy, and
- * not the clickhouse/druid denial ("a placeholder helper").
- */
-const PLACEHOLDER_CAPABILITY_SOURCE = String.raw`\b(?:placeholder\s+(?:style|generation)|dialect\s+placeholders?|getPlaceholder)\b`;
+/** Broad: any "placeholder" / "placeholders" — denials are sentence-scoped. */
+const PLACEHOLDER_CAPABILITY_SOURCE = String.raw`\bplaceholders?\b`;
+
+/** Sentence containing `matchIndex` in already-collapsed prose (`.!?` boundaries). */
+const sentenceAt = (collapsed: string, matchIndex: number): string => {
+  let start = 0;
+  for (const boundary of collapsed.slice(0, matchIndex).matchAll(/[.!?]\s+/g)) {
+    start = boundary.index! + boundary[0].length;
+  }
+  const rest = collapsed.slice(matchIndex);
+  const endRel = /[.!?](?:\s|$)/.exec(rest);
+  const end = endRel ? matchIndex + endRel.index! + 1 : collapsed.length;
+  return collapsed.slice(start, end);
+};
+
+/** SQLBaseProvider "provides / adds / gives for free" sections that must not list positionalPlaceholder. */
+const SQLBASE_PROVIDES_SECTIONS = [
+  {
+    doc: "docs/ADDING_A_PROVIDER.md",
+    heading: /### What SQLBaseProvider adds[\s\S]*?(?=\n### |\n## )/,
+    label: "### What SQLBaseProvider adds",
+  },
+  {
+    doc: "docs/providers/postgres.md",
+    heading: /### 2\.2 What `SQLBaseProvider` provides[\s\S]*?(?=\n### |\n## )/,
+    label: "### 2.2 What `SQLBaseProvider` provides",
+  },
+] as const;
 
 describe("docs do not credit SQLBaseProvider with placeholders (#647)", () => {
   for (const doc of PLACEHOLDER_ATTRIBUTION_DOCS) {
@@ -465,32 +486,28 @@ describe("docs do not credit SQLBaseProvider with placeholders (#647)", () => {
       const collapsed = collapse(read(doc));
       // Fresh /g regex per test — a shared global keeps lastIndex across cases.
       for (const match of collapsed.matchAll(new RegExp(PLACEHOLDER_CAPABILITY_SOURCE, "gi"))) {
-        const start = Math.max(0, match.index! - 220);
-        const end = Math.min(collapsed.length, match.index! + match[0].length + 220);
-        const window = collapsed.slice(start, end);
+        const window = sentenceAt(collapsed, match.index!);
         const credits =
           /SQLBaseProvider/i.test(window) ||
           (/\binherited\b/i.test(window) && !/\b(?:not|rather than)\s+inherited\b/i.test(window));
         const denies = /\bno longer has\b|\bnot in the list\b/i.test(window);
         expect(
           credits && !denies,
-          `${doc} credits SQLBaseProvider/inheritance with "${match[0]}" near: …${window.slice(0, 160)}…`,
+          `${doc} credits SQLBaseProvider/inheritance with "${match[0]}" in: …${window.slice(0, 160)}…`,
         ).toBe(false);
       }
     });
   }
 
-  test("ADDING_A_PROVIDER does not list positionalPlaceholder under What SQLBaseProvider adds", () => {
-    const text = read("docs/ADDING_A_PROVIDER.md");
-    // Stop at the next heading (### or ##) so a sibling "Positional placeholders"
-    // section is not treated as still under SQLBaseProvider.
-    const section =
-      /### What SQLBaseProvider adds[\s\S]*?(?=\n### |\n## )/.exec(text)?.[0] ??
-      "(missing What SQLBaseProvider adds section)";
-    expect(section, "positionalPlaceholder must not sit under What SQLBaseProvider adds").not.toMatch(
-      /positionalPlaceholder/,
-    );
-  });
+  for (const { doc, heading, label } of SQLBASE_PROVIDES_SECTIONS) {
+    test(`${doc} does not list positionalPlaceholder under ${label}`, () => {
+      const text = read(doc);
+      // Stop at the next heading (### or ##) so a sibling placeholders section is excluded.
+      const section = heading.exec(text)?.[0];
+      expect(section, `expected ${label} section in ${doc}`).toBeDefined();
+      expect(section!, `positionalPlaceholder must not sit under ${label}`).not.toMatch(/positionalPlaceholder/);
+    });
+  }
 
   test("positionalPlaceholder is declared in values.ts; sql-base declares no placeholder member", () => {
     expect(read("src/lib/sql/values.ts")).toMatch(/^export function positionalPlaceholder\(/m);

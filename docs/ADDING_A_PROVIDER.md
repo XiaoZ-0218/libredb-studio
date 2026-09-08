@@ -32,8 +32,8 @@ Three decisions. The first is the consequential one, which is why it is first.
    `mysql2`, `mongodb`, `ioredis`, `oracledb` or `mssql`.
 
 2. **Which base class?**
-   - **SQL databases → extend `SQLBaseProvider`.** It is
-     [`sql-base.ts`](../src/lib/db/providers/sql/sql-base.ts) of pure SQL text helpers keyed off
+   - **SQL databases → extend `SQLBaseProvider`.**
+     [`sql-base.ts`](../src/lib/db/providers/sql/sql-base.ts) is pure SQL text helpers keyed off
      `this.type` — identifier and string escaping, `LIMIT` clause building,
      read-only and DDL detection — plus a `prepareQuery()` that applies the shared query limiter.
      None of it touches a pool, a driver or a connection, so **an HTTP transport is no reason to

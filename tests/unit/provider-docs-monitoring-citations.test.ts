@@ -447,9 +447,9 @@ describe("provider docs that quote a label value verbatim", () => {
 const PLACEHOLDER_ATTRIBUTION_DOCS = [
   "docs/ADDING_A_PROVIDER.md",
   "docs/DATABASE_PROVIDERS.md",
-  "docs/providers/postgres.md",
-  "docs/providers/mysql.md",
-] as const;
+  // Every provider doc, so a sixth site in an unlisted doc cannot be invisible.
+  ...PROVIDER_DOCS,
+];
 
 /** Broad: any "placeholder" / "placeholders" — denials are sentence-scoped. */
 const PLACEHOLDER_CAPABILITY_SOURCE = String.raw`\bplaceholders?\b`;

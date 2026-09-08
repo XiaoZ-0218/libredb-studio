@@ -39,7 +39,7 @@ introspection and monitoring fast, safely, and resiliently**:
   (`pg_stat_statements`) or superuser-only views (WAL) are unavailable.
 
 PostgreSQL is also the **canonical SQL provider**: the shared SQL mechanics (identifier quoting,
-`LIMIT` injection, dialect placeholders, SSL auto-detection) live in `SQLBaseProvider`, and the
+`LIMIT` injection, SSL auto-detection) live in `SQLBaseProvider`, and the
 other SQL providers (MySQL, SQLite, Oracle, SQL Server) follow the patterns established here.
 
 ---

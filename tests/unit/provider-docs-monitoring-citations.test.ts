@@ -383,6 +383,7 @@ const TOP_LEVEL_NAMED_CITATION_DOCS = [
   "docs/AGENT.md",
   "docs/FEATURES.md",
   "docs/ADDING_A_PROVIDER.md",
+  "docs/DATABASE_PROVIDERS.md",
   "docs/SECURITY.md",
 ] as const;
 
@@ -429,4 +430,71 @@ describe("provider docs that quote a label value verbatim", () => {
       );
     });
   }
+});
+
+/**
+ * #647: `SQLBaseProvider` has no placeholder logic. The real home is
+ * `positionalPlaceholder()` in `src/lib/sql/values.ts`. Four docs paraphrased the
+ * capability onto the base class (or claimed inheritance); #640's `getPlaceholder`
+ * grep missed every paraphrase.
+ *
+ * Assert on the ATTRIBUTION, not the bare token `placeholder`:
+ * - `ADDING_A_PROVIDER.md` legitimately names `positionalPlaceholder()` and `searchPlaceholder`
+ * - `postgres.md` correctly says the helper is "shared rather than inherited"
+ * - clickhouse/druid correctly say the base "no longer has" a placeholder helper
+ *
+ * Pair the negative with a control: if the helper later moves into `sql-base.ts`,
+ * the positive assertion goes red and this guard must be rewritten on purpose.
+ */
+const PLACEHOLDER_ATTRIBUTION_DOCS = [
+  "docs/ADDING_A_PROVIDER.md",
+  "docs/DATABASE_PROVIDERS.md",
+  "docs/providers/postgres.md",
+] as const;
+
+/**
+ * Phrases that name a placeholder *capability* as something owned or handed down —
+ * not the function name `positionalPlaceholder`, not UI "placeholder row" copy, and
+ * not the clickhouse/druid denial ("a placeholder helper").
+ */
+const PLACEHOLDER_CAPABILITY_SOURCE =
+  String.raw`\b(?:placeholder\s+(?:style|generation)|dialect\s+placeholders?|getPlaceholder)\b`;
+
+describe("docs do not credit SQLBaseProvider with placeholders (#647)", () => {
+  for (const doc of PLACEHOLDER_ATTRIBUTION_DOCS) {
+    test(`${doc} does not credit SQLBaseProvider / inheritance with placeholders`, () => {
+      const collapsed = collapse(read(doc));
+      // Fresh /g regex per test — a shared global keeps lastIndex across cases.
+      for (const match of collapsed.matchAll(new RegExp(PLACEHOLDER_CAPABILITY_SOURCE, "gi"))) {
+        const start = Math.max(0, match.index! - 220);
+        const end = Math.min(collapsed.length, match.index! + match[0].length + 220);
+        const window = collapsed.slice(start, end);
+        const credits =
+          /SQLBaseProvider/i.test(window) ||
+          (/\binherited\b/i.test(window) && !/\b(?:not|rather than)\s+inherited\b/i.test(window));
+        const denies = /\bno longer has\b|\bnot in the list\b/i.test(window);
+        expect(
+          credits && !denies,
+          `${doc} credits SQLBaseProvider/inheritance with "${match[0]}" near: …${window.slice(0, 160)}…`,
+        ).toBe(false);
+      }
+    });
+  }
+
+  test("ADDING_A_PROVIDER does not list positionalPlaceholder under What SQLBaseProvider adds", () => {
+    const text = read("docs/ADDING_A_PROVIDER.md");
+    // Stop at the next heading (### or ##) so a sibling "Positional placeholders"
+    // section is not treated as still under SQLBaseProvider.
+    const section =
+      /### What SQLBaseProvider adds[\s\S]*?(?=\n### |\n## )/.exec(text)?.[0] ??
+      "(missing What SQLBaseProvider adds section)";
+    expect(section, "positionalPlaceholder must not sit under What SQLBaseProvider adds").not.toMatch(
+      /positionalPlaceholder/,
+    );
+  });
+
+  test("positionalPlaceholder is declared in values.ts; sql-base declares no placeholder member", () => {
+    expect(read("src/lib/sql/values.ts")).toMatch(/^export function positionalPlaceholder\(/m);
+    expect(read("src/lib/db/providers/sql/sql-base.ts")).not.toMatch(/placeholder/i);
+  });
 });

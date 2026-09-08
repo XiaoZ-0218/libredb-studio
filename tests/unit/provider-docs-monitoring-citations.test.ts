@@ -457,8 +457,7 @@ const PLACEHOLDER_ATTRIBUTION_DOCS = [
  * not the function name `positionalPlaceholder`, not UI "placeholder row" copy, and
  * not the clickhouse/druid denial ("a placeholder helper").
  */
-const PLACEHOLDER_CAPABILITY_SOURCE =
-  String.raw`\b(?:placeholder\s+(?:style|generation)|dialect\s+placeholders?|getPlaceholder)\b`;
+const PLACEHOLDER_CAPABILITY_SOURCE = String.raw`\b(?:placeholder\s+(?:style|generation)|dialect\s+placeholders?|getPlaceholder)\b`;
 
 describe("docs do not credit SQLBaseProvider with placeholders (#647)", () => {
   for (const doc of PLACEHOLDER_ATTRIBUTION_DOCS) {
